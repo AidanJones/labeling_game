@@ -1,0 +1,1072 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Labeling Game - Pixel Art Object Detection</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+
+  body {
+    background: #1a1a2e;
+    color: #e0e0e0;
+    font-family: 'Press Start 2P', monospace;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    image-rendering: pixelated;
+  }
+
+  h1 {
+    font-size: 18px;
+    margin: 16px 0 8px;
+    color: #f7d354;
+    text-shadow: 2px 2px 0 #b8860b;
+    letter-spacing: 2px;
+    text-align: center;
+  }
+
+  .subtitle {
+    font-size: 8px;
+    color: #8888aa;
+    margin-bottom: 12px;
+    text-align: center;
+  }
+
+  /* Top bar */
+  .top-bar {
+    display: flex;
+    gap: 24px;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 10px;
+    flex-wrap: wrap;
+  }
+
+  .stat {
+    font-size: 10px;
+    color: #aaa;
+  }
+  .stat span {
+    color: #f7d354;
+    font-size: 13px;
+  }
+
+  .timer { color: #ff6b6b; }
+  .timer span { color: #ff6b6b; }
+  .timer.warning span { animation: blink 0.5s infinite; }
+
+  @keyframes blink {
+    50% { opacity: 0.3; }
+  }
+
+  /* Canvas area */
+  .canvas-wrap {
+    position: relative;
+    border: 4px solid #333;
+    box-shadow: 0 0 0 2px #111, 0 0 20px rgba(247,211,84,0.15);
+    background: #111;
+    cursor: crosshair;
+  }
+
+  canvas { display: block; }
+
+  /* Buttons */
+  .btn-row {
+    display: flex;
+    gap: 10px;
+    margin: 12px 0;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+
+  button {
+    font-family: 'Press Start 2P', monospace;
+    font-size: 10px;
+    padding: 10px 18px;
+    border: 3px solid #555;
+    background: #2a2a4a;
+    color: #e0e0e0;
+    cursor: pointer;
+    transition: all 0.1s;
+    text-transform: uppercase;
+  }
+  button:hover {
+    background: #3a3a6a;
+    border-color: #f7d354;
+    color: #f7d354;
+  }
+  button:active {
+    transform: scale(0.96);
+  }
+  button:disabled {
+    opacity: 0.4;
+    cursor: default;
+    border-color: #333;
+  }
+  button:disabled:hover {
+    background: #2a2a4a;
+    color: #e0e0e0;
+    border-color: #333;
+  }
+
+  .btn-ai {
+    background: #2e1a4a;
+    border-color: #7b4dff;
+    color: #c4a8ff;
+  }
+  .btn-ai:hover {
+    background: #3e2a6a;
+    border-color: #a67dff;
+    color: #e0d0ff;
+  }
+
+  .btn-submit {
+    background: #1a3a1a;
+    border-color: #4caf50;
+    color: #81c784;
+  }
+  .btn-submit:hover {
+    background: #2a5a2a;
+    border-color: #66cc6a;
+    color: #a5d6a7;
+  }
+
+  .btn-start {
+    font-size: 14px;
+    padding: 16px 32px;
+    background: #3a1a1a;
+    border-color: #ff6b6b;
+    color: #ffaaaa;
+    animation: pulse 1.5s infinite;
+  }
+  .btn-start:hover {
+    background: #5a2a2a;
+    border-color: #ff9999;
+    color: #ffcccc;
+  }
+
+  @keyframes pulse {
+    0%, 100% { box-shadow: 0 0 8px rgba(255,107,107,0.3); }
+    50% { box-shadow: 0 0 20px rgba(255,107,107,0.6); }
+  }
+
+  /* Feedback overlay */
+  .feedback {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    font-size: 20px;
+    pointer-events: none;
+    opacity: 0;
+    transition: opacity 0.3s;
+    text-shadow: 2px 2px 0 #000;
+    z-index: 10;
+  }
+  .feedback.show { opacity: 1; }
+
+  /* Object label hints */
+  .hint-label {
+    position: absolute;
+    font-size: 7px;
+    color: #f7d354;
+    background: rgba(0,0,0,0.7);
+    padding: 2px 5px;
+    pointer-events: none;
+    z-index: 5;
+    border: 1px solid #f7d354;
+  }
+
+  /* Results screen */
+  .results {
+    text-align: center;
+    margin-top: 20px;
+  }
+  .results h2 {
+    font-size: 16px;
+    color: #f7d354;
+    margin-bottom: 20px;
+  }
+  .results .row {
+    font-size: 10px;
+    margin: 10px 0;
+    color: #ccc;
+  }
+  .results .row span {
+    color: #81c784;
+  }
+  .results .final-score {
+    font-size: 22px;
+    color: #f7d354;
+    margin: 20px 0;
+    text-shadow: 2px 2px 0 #b8860b;
+  }
+  .grade {
+    font-size: 28px;
+    margin: 10px 0;
+  }
+
+  /* Mode toggle */
+  .mode-toggle {
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    font-size: 8px;
+    color: #888;
+    margin-bottom: 8px;
+  }
+  .mode-toggle label {
+    cursor: pointer;
+    padding: 6px 12px;
+    border: 2px solid #444;
+    background: #222;
+    transition: all 0.15s;
+  }
+  .mode-toggle label.active {
+    border-color: #f7d354;
+    color: #f7d354;
+    background: #2a2a3a;
+  }
+  .mode-toggle input { display: none; }
+
+  /* Instructions */
+  .instructions {
+    font-size: 8px;
+    color: #777;
+    max-width: 520px;
+    line-height: 1.8;
+    text-align: center;
+    margin: 8px 0;
+  }
+  .instructions strong { color: #f7d354; }
+
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+
+<h1>Labeling Game</h1>
+<p class="subtitle">Pixel Art Object Detection Challenge</p>
+
+<!-- Start Screen -->
+<div id="startScreen">
+  <div class="instructions">
+    <p>Draw bounding boxes around the <strong>highlighted objects</strong> in each scene.</p>
+    <p>Score points for accuracy. Label as many objects as you can in <strong>60 seconds</strong>!</p>
+    <p style="margin-top:8px;">Click &amp; drag to draw a box. The closer your box, the more points you earn.</p>
+  </div>
+  <div class="mode-toggle" style="margin-top: 12px;">
+    <label class="active" id="modeManual" onclick="setMode('manual')">Manual Mode</label>
+    <label id="modeAI" onclick="setMode('ai')">AI Assist Mode</label>
+  </div>
+  <div class="instructions" id="modeDesc">Draw your own bounding boxes around each object.</div>
+  <div class="btn-row" style="margin-top: 16px;">
+    <button class="btn-start" onclick="startGame()">Start Game</button>
+  </div>
+</div>
+
+<!-- Game Screen -->
+<div id="gameScreen" class="hidden">
+  <div class="top-bar">
+    <div class="stat timer" id="timerStat">Time: <span id="timerDisplay">60</span></div>
+    <div class="stat">Score: <span id="scoreDisplay">0</span></div>
+    <div class="stat">Objects: <span id="objectsDisplay">0/0</span></div>
+    <div class="stat">Image: <span id="imageDisplay">1</span></div>
+  </div>
+  <div class="canvas-wrap" id="canvasWrap">
+    <canvas id="gameCanvas" width="520" height="400"></canvas>
+    <div class="feedback" id="feedback"></div>
+  </div>
+  <div class="btn-row">
+    <button onclick="clearBoxes()" id="btnClear">Clear</button>
+    <button onclick="undoBox()" id="btnUndo">Undo</button>
+    <button class="btn-ai" onclick="aiAssist()" id="btnAI">AI Assist</button>
+    <button class="btn-submit" onclick="submitImage()" id="btnSubmit">Submit</button>
+  </div>
+  <div class="instructions" id="gameHint">
+    Click and drag to draw bounding boxes around each object.
+  </div>
+</div>
+
+<!-- Results Screen -->
+<div id="resultsScreen" class="hidden">
+  <div class="results">
+    <h2>Time's Up!</h2>
+    <div class="grade" id="gradeEmoji"></div>
+    <div class="final-score">Score: <span id="finalScore">0</span></div>
+    <div class="row">Images Completed: <span id="resImages">0</span></div>
+    <div class="row">Objects Labeled: <span id="resObjects">0</span></div>
+    <div class="row">Average Accuracy: <span id="resAccuracy">0%</span></div>
+    <div class="row">Perfect Labels (>90%): <span id="resPerfect">0</span></div>
+    <div class="btn-row" style="margin-top: 24px;">
+      <button class="btn-start" onclick="restartGame()">Play Again</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── Constants ──
+const W = 520, H = 400;
+const PIXEL = 8; // pixel art block size
+const COLS = W / PIXEL, ROWS = H / PIXEL;
+const GAME_DURATION = 60;
+
+// ── State ──
+let mode = 'manual'; // 'manual' | 'ai'
+let gameRunning = false;
+let timeLeft = GAME_DURATION;
+let timerInterval = null;
+let score = 0;
+let totalObjectsLabeled = 0;
+let imagesCompleted = 0;
+let perfectLabels = 0;
+let accuracySum = 0;
+let accuracyCount = 0;
+
+// Current scene
+let scene = null; // { objects: [{x,y,w,h,color,label}], bgColor, bgPattern }
+let userBoxes = [];  // [{x,y,w,h}] drawn by user or AI
+let drawingBox = null; // in-progress box
+let isDrawing = false;
+let startX = 0, startY = 0;
+
+const canvas = document.getElementById('gameCanvas');
+const ctx = canvas.getContext('2d');
+
+// ── Seeded random for reproducibility within a scene ──
+let _seed = 1;
+function seededRandom() {
+  _seed = (_seed * 16807 + 0) % 2147483647;
+  return (_seed - 1) / 2147483646;
+}
+
+function rand(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; }
+
+// ── Pixel art drawing helpers ──
+function fillPixel(px, py, color) {
+  ctx.fillStyle = color;
+  ctx.fillRect(px * PIXEL, py * PIXEL, PIXEL, PIXEL);
+}
+
+function fillPixelRect(px, py, pw, ph, color) {
+  ctx.fillStyle = color;
+  ctx.fillRect(px * PIXEL, py * PIXEL, pw * PIXEL, ph * PIXEL);
+}
+
+// ── Color helpers ──
+const PALETTES = [
+  // Each palette: [bg, accent1, accent2, accent3, accent4]
+  ['#2b2d42', '#8d99ae', '#ef233c', '#d90429', '#edf2f4'],
+  ['#264653', '#2a9d8f', '#e9c46a', '#f4a261', '#e76f51'],
+  ['#003049', '#d62828', '#f77f00', '#fcbf49', '#eae2b7'],
+  ['#10002b', '#240046', '#7b2cbf', '#c77dff', '#e0aaff'],
+  ['#0d1b2a', '#1b263b', '#415a77', '#778da9', '#e0e1dd'],
+  ['#353535', '#3c6e71', '#ffffff', '#d9d9d9', '#284b63'],
+  ['#1b1b2f', '#162447', '#1f4068', '#e43f5a', '#f9f7f7'],
+  ['#0b0c10', '#1f2833', '#c5c6c7', '#66fcf1', '#45a29e'],
+];
+
+function randomColor() {
+  const h = rand(0, 360);
+  const s = rand(40, 90);
+  const l = rand(35, 65);
+  return `hsl(${h},${s}%,${l}%)`;
+}
+
+function darken(color, amount) {
+  // Simple darken by drawing with alpha
+  return color;
+}
+
+// ── Shape generators (pixel-grid coords) ──
+// These draw abstract shapes that are intentionally irregular
+
+function generateBlob(cx, cy, radius) {
+  // Irregular blob shape
+  const pixels = [];
+  for (let dy = -radius; dy <= radius; dy++) {
+    for (let dx = -radius; dx <= radius; dx++) {
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      const angle = Math.atan2(dy, dx);
+      const wobble = radius * (0.6 + 0.4 * Math.sin(angle * 3 + seededRandom() * 2));
+      if (dist <= wobble) {
+        pixels.push([cx + dx, cy + dy]);
+      }
+    }
+  }
+  return pixels;
+}
+
+function generateCrystal(cx, cy, size) {
+  const pixels = [];
+  for (let dy = -size; dy <= size; dy++) {
+    const width = Math.max(0, size - Math.abs(dy) + Math.floor(seededRandom() * 2));
+    for (let dx = -width; dx <= width; dx++) {
+      if (seededRandom() > 0.1) {
+        pixels.push([cx + dx, cy + dy]);
+      }
+    }
+  }
+  return pixels;
+}
+
+function generateStar(cx, cy, size) {
+  const pixels = [];
+  // Cross / star pattern with irregular arms
+  for (let i = -size; i <= size; i++) {
+    const thick = Math.max(1, Math.floor(size / 3) - Math.floor(seededRandom() * 2));
+    for (let t = -thick; t <= thick; t++) {
+      pixels.push([cx + i, cy + t]); // horizontal
+      pixels.push([cx + t, cy + i]); // vertical
+    }
+    // Diagonal arms
+    if (seededRandom() > 0.3) {
+      pixels.push([cx + i, cy + i]);
+      pixels.push([cx + i, cy - i]);
+      if (seededRandom() > 0.5) {
+        pixels.push([cx + i + 1, cy + i]);
+        pixels.push([cx + i, cy - i + 1]);
+      }
+    }
+  }
+  return pixels;
+}
+
+function generateZigzag(cx, cy, size) {
+  const pixels = [];
+  let y = cy - size;
+  let x = cx - Math.floor(size / 2);
+  for (let i = 0; i < size * 2; i++) {
+    const thick = rand(1, 3);
+    for (let t = 0; t < thick; t++) {
+      pixels.push([x + t, y]);
+      pixels.push([x + t, y + 1]);
+    }
+    y++;
+    x += (i % 4 < 2) ? 1 : -1;
+  }
+  return pixels;
+}
+
+function generateRing(cx, cy, outerR, innerR) {
+  const pixels = [];
+  for (let dy = -outerR; dy <= outerR; dy++) {
+    for (let dx = -outerR; dx <= outerR; dx++) {
+      const dist = Math.sqrt(dx * dx + dy * dy);
+      if (dist <= outerR && dist >= innerR) {
+        if (seededRandom() > 0.08) {
+          pixels.push([cx + dx, cy + dy]);
+        }
+      }
+    }
+  }
+  return pixels;
+}
+
+function generateLShape(cx, cy, size) {
+  const pixels = [];
+  const thick = Math.max(2, Math.floor(size / 3));
+  // Vertical bar
+  for (let dy = 0; dy < size; dy++) {
+    for (let dx = 0; dx < thick + Math.floor(seededRandom() * 2); dx++) {
+      pixels.push([cx + dx, cy + dy]);
+    }
+  }
+  // Horizontal bar at bottom
+  for (let dx = 0; dx < size; dx++) {
+    for (let dy = 0; dy < thick + Math.floor(seededRandom() * 2); dy++) {
+      pixels.push([cx + dx, cy + size - thick + dy]);
+    }
+  }
+  return pixels;
+}
+
+function generateArch(cx, cy, size) {
+  const pixels = [];
+  const halfW = size;
+  for (let dx = -halfW; dx <= halfW; dx++) {
+    const height = Math.floor(Math.sqrt(Math.max(0, halfW * halfW - dx * dx)) * 0.8);
+    for (let dy = 0; dy < height; dy++) {
+      pixels.push([cx + dx, cy - dy]);
+    }
+    // Legs
+    if (Math.abs(dx) > halfW - 3) {
+      for (let dy = 0; dy < size; dy++) {
+        pixels.push([cx + dx, cy + dy]);
+      }
+    }
+  }
+  return pixels;
+}
+
+const SHAPE_GENERATORS = [
+  generateBlob, generateCrystal, generateStar, generateZigzag,
+  generateRing, generateLShape, generateArch
+];
+
+// ── Scene Generation ──
+function generateScene() {
+  _seed = Date.now() % 100000;
+  const palette = PALETTES[rand(0, PALETTES.length - 1)];
+  const bgColor = palette[0];
+  const numObjects = rand(2, 4);
+  const objects = [];
+
+  // Keep track of placed regions to avoid overlap
+  const placed = [];
+
+  for (let i = 0; i < numObjects; i++) {
+    const genFn = SHAPE_GENERATORS[rand(0, SHAPE_GENERATORS.length - 1)];
+    const size = rand(4, 8);
+    const color = palette[rand(1, palette.length - 1)];
+
+    // Try to place without heavy overlap
+    let bestCx, bestCy, bestPixels;
+    for (let attempt = 0; attempt < 20; attempt++) {
+      const cx = rand(size + 3, COLS - size - 3);
+      const cy = rand(size + 3, ROWS - size - 3);
+      const pixels = genFn(cx, cy, size, Math.max(1, size - 3));
+
+      // Check overlap with placed objects
+      let overlap = false;
+      for (const p of placed) {
+        if (Math.abs(cx - p.cx) < (size + p.size + 2) &&
+            Math.abs(cy - p.cy) < (size + p.size + 2)) {
+          overlap = true;
+          break;
+        }
+      }
+      if (!overlap || attempt === 19) {
+        bestCx = cx;
+        bestCy = cy;
+        bestPixels = pixels;
+        break;
+      }
+    }
+
+    // Compute bounding box from pixels
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    for (const [px, py] of bestPixels) {
+      if (px < minX) minX = px;
+      if (py < minY) minY = py;
+      if (px > maxX) maxX = px;
+      if (py > maxY) maxY = py;
+    }
+
+    // Convert to canvas coords
+    const bbx = minX * PIXEL;
+    const bby = minY * PIXEL;
+    const bbw = (maxX - minX + 1) * PIXEL;
+    const bbh = (maxY - minY + 1) * PIXEL;
+
+    const labels = ['Artifact', 'Glyph', 'Crystal', 'Rune', 'Fragment', 'Shard', 'Entity', 'Anomaly'];
+
+    objects.push({
+      pixels: bestPixels,
+      color: color,
+      label: labels[rand(0, labels.length - 1)] + ' ' + (i + 1),
+      // True bounding box (canvas coords)
+      bx: bbx, by: bby, bw: bbw, bh: bbh,
+      // For overlap checking
+      cx: bestCx, cy: bestCy, size: size
+    });
+
+    placed.push({ cx: bestCx, cy: bestCy, size: size });
+  }
+
+  // Generate background noise / pattern
+  const bgPixels = [];
+  for (let y = 0; y < ROWS; y++) {
+    for (let x = 0; x < COLS; x++) {
+      if (seededRandom() < 0.06) {
+        const shade = seededRandom() > 0.5 ? palette[1] : palette[2];
+        bgPixels.push([x, y, shade]);
+      }
+    }
+  }
+
+  return { objects, bgColor, bgPixels };
+}
+
+// ── Render ──
+function render() {
+  // Background
+  ctx.fillStyle = scene.bgColor;
+  ctx.fillRect(0, 0, W, H);
+
+  // BG noise pixels (subtle)
+  ctx.globalAlpha = 0.12;
+  for (const [x, y, c] of scene.bgPixels) {
+    fillPixel(x, y, c);
+  }
+  ctx.globalAlpha = 1;
+
+  // Draw objects
+  for (const obj of scene.objects) {
+    for (const [px, py] of obj.pixels) {
+      if (px >= 0 && px < COLS && py >= 0 && py < ROWS) {
+        fillPixel(px, py, obj.color);
+      }
+    }
+    // Subtle shadow/outline
+    ctx.globalAlpha = 0.15;
+    for (const [px, py] of obj.pixels) {
+      if (px + 1 < COLS && py + 1 < ROWS) {
+        fillPixel(px + 1, py + 1, '#000');
+      }
+    }
+    ctx.globalAlpha = 1;
+    // Redraw over shadow
+    for (const [px, py] of obj.pixels) {
+      if (px >= 0 && px < COLS && py >= 0 && py < ROWS) {
+        fillPixel(px, py, obj.color);
+      }
+    }
+  }
+
+  // Draw little label tags near objects
+  updateHintLabels();
+
+  // User boxes
+  ctx.lineWidth = 2;
+  for (let i = 0; i < userBoxes.length; i++) {
+    const b = userBoxes[i];
+    ctx.strokeStyle = '#00ff88';
+    ctx.setLineDash([4, 4]);
+    ctx.strokeRect(b.x, b.y, b.w, b.h);
+    ctx.setLineDash([]);
+    // Label
+    ctx.fillStyle = 'rgba(0,255,136,0.15)';
+    ctx.fillRect(b.x, b.y, b.w, b.h);
+    ctx.fillStyle = '#00ff88';
+    ctx.font = '10px "Press Start 2P"';
+    ctx.fillText(`Box ${i + 1}`, b.x + 4, b.y - 4);
+  }
+
+  // Drawing in progress
+  if (drawingBox) {
+    ctx.strokeStyle = '#ffff00';
+    ctx.lineWidth = 2;
+    ctx.setLineDash([6, 3]);
+    ctx.strokeRect(drawingBox.x, drawingBox.y, drawingBox.w, drawingBox.h);
+    ctx.setLineDash([]);
+    ctx.fillStyle = 'rgba(255,255,0,0.08)';
+    ctx.fillRect(drawingBox.x, drawingBox.y, drawingBox.w, drawingBox.h);
+  }
+
+  // Grid overlay (very subtle)
+  ctx.strokeStyle = 'rgba(255,255,255,0.03)';
+  ctx.lineWidth = 0.5;
+  for (let x = 0; x < W; x += PIXEL) {
+    ctx.beginPath();
+    ctx.moveTo(x, 0);
+    ctx.lineTo(x, H);
+    ctx.stroke();
+  }
+  for (let y = 0; y < H; y += PIXEL) {
+    ctx.beginPath();
+    ctx.moveTo(0, y);
+    ctx.lineTo(W, y);
+    ctx.stroke();
+  }
+}
+
+// ── Hint labels (DOM overlays) ──
+function updateHintLabels() {
+  const wrap = document.getElementById('canvasWrap');
+  wrap.querySelectorAll('.hint-label').forEach(el => el.remove());
+  if (!scene) return;
+  for (const obj of scene.objects) {
+    const el = document.createElement('div');
+    el.className = 'hint-label';
+    el.textContent = obj.label;
+    el.style.left = obj.bx + 'px';
+    el.style.top = (obj.by - 14) + 'px';
+    wrap.appendChild(el);
+  }
+}
+
+// ── IoU / Accuracy ──
+function computeIoU(boxA, boxB) {
+  // boxA, boxB: {x,y,w,h}
+  const ax1 = boxA.x, ay1 = boxA.y, ax2 = boxA.x + boxA.w, ay2 = boxA.y + boxA.h;
+  const bx1 = boxB.x, by1 = boxB.y, bx2 = boxB.x + boxB.w, by2 = boxB.y + boxB.h;
+
+  const ix1 = Math.max(ax1, bx1);
+  const iy1 = Math.max(ay1, by1);
+  const ix2 = Math.min(ax2, bx2);
+  const iy2 = Math.min(ay2, by2);
+
+  if (ix2 <= ix1 || iy2 <= iy1) return 0;
+
+  const intersection = (ix2 - ix1) * (iy2 - iy1);
+  const areaA = Math.abs(boxA.w * boxA.h);
+  const areaB = Math.abs(boxB.w * boxB.h);
+  const union = areaA + areaB - intersection;
+
+  return union === 0 ? 0 : intersection / union;
+}
+
+function scoreSubmission() {
+  // Match user boxes to objects greedily
+  const matched = new Set();
+  let totalIoU = 0;
+  let matchCount = 0;
+
+  // Normalize boxes (ensure positive w/h)
+  const normalizedBoxes = userBoxes.map(b => ({
+    x: b.w < 0 ? b.x + b.w : b.x,
+    y: b.h < 0 ? b.y + b.h : b.y,
+    w: Math.abs(b.w),
+    h: Math.abs(b.h)
+  }));
+
+  // For each object, find best matching user box
+  for (const obj of scene.objects) {
+    const truthBox = { x: obj.bx, y: obj.by, w: obj.bw, h: obj.bh };
+    let bestIoU = 0;
+    let bestIdx = -1;
+
+    for (let i = 0; i < normalizedBoxes.length; i++) {
+      if (matched.has(i)) continue;
+      const iou = computeIoU(truthBox, normalizedBoxes[i]);
+      if (iou > bestIoU) {
+        bestIoU = iou;
+        bestIdx = i;
+      }
+    }
+
+    if (bestIdx >= 0 && bestIoU > 0.15) {
+      matched.add(bestIdx);
+      totalIoU += bestIoU;
+      matchCount++;
+
+      // Score: 100 points per object * accuracy
+      const pts = Math.round(100 * bestIoU);
+      score += pts;
+
+      if (bestIoU > 0.9) perfectLabels++;
+      accuracySum += bestIoU;
+      accuracyCount++;
+    }
+  }
+
+  totalObjectsLabeled += matchCount;
+  return { matchCount, totalObjects: scene.objects.length, avgIoU: matchCount > 0 ? totalIoU / matchCount : 0 };
+}
+
+// ── Feedback animation ──
+function showFeedback(text, color) {
+  const fb = document.getElementById('feedback');
+  fb.textContent = text;
+  fb.style.color = color || '#f7d354';
+  fb.classList.add('show');
+  setTimeout(() => fb.classList.remove('show'), 1200);
+}
+
+// ── Mouse / drawing ──
+canvas.addEventListener('mousedown', (e) => {
+  if (!gameRunning) return;
+  const rect = canvas.getBoundingClientRect();
+  startX = e.clientX - rect.left;
+  startY = e.clientY - rect.top;
+  isDrawing = true;
+  drawingBox = null;
+});
+
+canvas.addEventListener('mousemove', (e) => {
+  if (!isDrawing || !gameRunning) return;
+  const rect = canvas.getBoundingClientRect();
+  const mx = e.clientX - rect.left;
+  const my = e.clientY - rect.top;
+  drawingBox = {
+    x: startX,
+    y: startY,
+    w: mx - startX,
+    h: my - startY
+  };
+  render();
+});
+
+canvas.addEventListener('mouseup', (e) => {
+  if (!isDrawing || !gameRunning) return;
+  isDrawing = false;
+  if (drawingBox && (Math.abs(drawingBox.w) > 5 || Math.abs(drawingBox.h) > 5)) {
+    // Normalize
+    userBoxes.push({
+      x: drawingBox.w < 0 ? drawingBox.x + drawingBox.w : drawingBox.x,
+      y: drawingBox.h < 0 ? drawingBox.y + drawingBox.h : drawingBox.y,
+      w: Math.abs(drawingBox.w),
+      h: Math.abs(drawingBox.h)
+    });
+  }
+  drawingBox = null;
+  render();
+  updateObjectsDisplay();
+});
+
+// Touch support
+canvas.addEventListener('touchstart', (e) => {
+  e.preventDefault();
+  if (!gameRunning) return;
+  const rect = canvas.getBoundingClientRect();
+  const t = e.touches[0];
+  startX = t.clientX - rect.left;
+  startY = t.clientY - rect.top;
+  isDrawing = true;
+  drawingBox = null;
+});
+
+canvas.addEventListener('touchmove', (e) => {
+  e.preventDefault();
+  if (!isDrawing || !gameRunning) return;
+  const rect = canvas.getBoundingClientRect();
+  const t = e.touches[0];
+  const mx = t.clientX - rect.left;
+  const my = t.clientY - rect.top;
+  drawingBox = { x: startX, y: startY, w: mx - startX, h: my - startY };
+  render();
+});
+
+canvas.addEventListener('touchend', (e) => {
+  e.preventDefault();
+  if (!isDrawing || !gameRunning) return;
+  isDrawing = false;
+  if (drawingBox && (Math.abs(drawingBox.w) > 5 || Math.abs(drawingBox.h) > 5)) {
+    userBoxes.push({
+      x: drawingBox.w < 0 ? drawingBox.x + drawingBox.w : drawingBox.x,
+      y: drawingBox.h < 0 ? drawingBox.y + drawingBox.h : drawingBox.y,
+      w: Math.abs(drawingBox.w),
+      h: Math.abs(drawingBox.h)
+    });
+  }
+  drawingBox = null;
+  render();
+  updateObjectsDisplay();
+});
+
+// ── Buttons ──
+function clearBoxes() {
+  userBoxes = [];
+  render();
+  updateObjectsDisplay();
+}
+
+function undoBox() {
+  userBoxes.pop();
+  render();
+  updateObjectsDisplay();
+}
+
+function aiAssist() {
+  if (!gameRunning || mode !== 'ai') return;
+
+  userBoxes = [];
+
+  for (const obj of scene.objects) {
+    // AI draws boxes that are a mix of perfect and slightly off
+    const isPerfect = Math.random() < 0.35;
+    let bx, by, bw, bh;
+
+    if (isPerfect) {
+      // Near-perfect box with tiny jitter
+      const jitter = rand(-3, 3);
+      bx = obj.bx + jitter;
+      by = obj.by + jitter;
+      bw = obj.bw + rand(-2, 2);
+      bh = obj.bh + rand(-2, 2);
+    } else {
+      // Slightly off - shifted and/or sized differently
+      const offsetX = rand(-15, 15);
+      const offsetY = rand(-15, 15);
+      const scaleW = 0.7 + Math.random() * 0.6; // 70%-130%
+      const scaleH = 0.7 + Math.random() * 0.6;
+      bx = obj.bx + offsetX;
+      by = obj.by + offsetY;
+      bw = Math.round(obj.bw * scaleW);
+      bh = Math.round(obj.bh * scaleH);
+    }
+
+    // Clamp to canvas
+    bx = Math.max(0, Math.min(W - 10, bx));
+    by = Math.max(0, Math.min(H - 10, by));
+    bw = Math.max(10, Math.min(W - bx, bw));
+    bh = Math.max(10, Math.min(H - by, bh));
+
+    userBoxes.push({ x: bx, y: by, w: bw, h: bh });
+  }
+
+  render();
+  updateObjectsDisplay();
+  showFeedback('AI Assist!', '#c4a8ff');
+}
+
+function submitImage() {
+  if (!gameRunning) return;
+
+  const result = scoreSubmission();
+
+  // Flash accuracy feedback
+  if (result.matchCount === 0) {
+    showFeedback('Miss!', '#ff6b6b');
+  } else if (result.avgIoU > 0.85) {
+    showFeedback(`+${Math.round(result.avgIoU * 100 * result.matchCount)} Perfect!`, '#00ff88');
+  } else if (result.avgIoU > 0.5) {
+    showFeedback(`+${Math.round(result.avgIoU * 100 * result.matchCount)} Good!`, '#f7d354');
+  } else {
+    showFeedback(`+${Math.round(result.avgIoU * 100 * result.matchCount)} OK`, '#ffaa44');
+  }
+
+  imagesCompleted++;
+
+  // Brief flash showing true boxes
+  flashTrueBoxes(() => {
+    // Next scene
+    scene = generateScene();
+    userBoxes = [];
+    drawingBox = null;
+    render();
+    updateObjectsDisplay();
+    document.getElementById('imageDisplay').textContent = imagesCompleted + 1;
+    document.getElementById('scoreDisplay').textContent = score;
+  });
+}
+
+function flashTrueBoxes(callback) {
+  // Show the true bounding boxes briefly
+  ctx.lineWidth = 2;
+  for (const obj of scene.objects) {
+    ctx.strokeStyle = '#ff0000';
+    ctx.setLineDash([]);
+    ctx.strokeRect(obj.bx, obj.by, obj.bw, obj.bh);
+    ctx.fillStyle = 'rgba(255,0,0,0.1)';
+    ctx.fillRect(obj.bx, obj.by, obj.bw, obj.bh);
+    // Label
+    ctx.fillStyle = '#ff4444';
+    ctx.font = '8px "Press Start 2P"';
+    ctx.fillText('TRUE', obj.bx + 2, obj.by + obj.bh + 12);
+  }
+  setTimeout(callback, 600);
+}
+
+function updateObjectsDisplay() {
+  const objCount = scene ? scene.objects.length : 0;
+  document.getElementById('objectsDisplay').textContent =
+    `${userBoxes.length}/${objCount}`;
+}
+
+// ── Timer ──
+function updateTimer() {
+  timeLeft--;
+  document.getElementById('timerDisplay').textContent = timeLeft;
+
+  if (timeLeft <= 10) {
+    document.getElementById('timerStat').classList.add('warning');
+  }
+
+  if (timeLeft <= 0) {
+    endGame();
+  }
+}
+
+// ── Game flow ──
+function setMode(m) {
+  mode = m;
+  document.getElementById('modeManual').classList.toggle('active', m === 'manual');
+  document.getElementById('modeAI').classList.toggle('active', m === 'ai');
+  document.getElementById('modeDesc').textContent = m === 'manual'
+    ? 'Draw your own bounding boxes around each object.'
+    : 'AI draws initial boxes. You can adjust them or submit as-is.';
+}
+
+function startGame() {
+  // Reset state
+  score = 0;
+  timeLeft = GAME_DURATION;
+  totalObjectsLabeled = 0;
+  imagesCompleted = 0;
+  perfectLabels = 0;
+  accuracySum = 0;
+  accuracyCount = 0;
+  userBoxes = [];
+  drawingBox = null;
+
+  document.getElementById('startScreen').classList.add('hidden');
+  document.getElementById('resultsScreen').classList.add('hidden');
+  document.getElementById('gameScreen').classList.remove('hidden');
+
+  // AI button visibility
+  document.getElementById('btnAI').classList.toggle('hidden', mode !== 'ai');
+
+  document.getElementById('gameHint').textContent = mode === 'ai'
+    ? 'Click "AI Assist" to auto-draw boxes, then adjust or submit.'
+    : 'Click and drag to draw bounding boxes around each object.';
+
+  // Generate first scene
+  scene = generateScene();
+  render();
+  updateObjectsDisplay();
+  document.getElementById('imageDisplay').textContent = 1;
+  document.getElementById('scoreDisplay').textContent = 0;
+  document.getElementById('timerDisplay').textContent = timeLeft;
+  document.getElementById('timerStat').classList.remove('warning');
+
+  gameRunning = true;
+  timerInterval = setInterval(updateTimer, 1000);
+}
+
+function endGame() {
+  gameRunning = false;
+  clearInterval(timerInterval);
+
+  // Auto-submit current image if boxes drawn
+  if (userBoxes.length > 0) {
+    const result = scoreSubmission();
+    imagesCompleted++;
+  }
+
+  document.getElementById('gameScreen').classList.add('hidden');
+  document.getElementById('resultsScreen').classList.remove('hidden');
+
+  document.getElementById('finalScore').textContent = score;
+  document.getElementById('resImages').textContent = imagesCompleted;
+  document.getElementById('resObjects').textContent = totalObjectsLabeled;
+  document.getElementById('resPerfect').textContent = perfectLabels;
+
+  const avgAcc = accuracyCount > 0 ? Math.round((accuracySum / accuracyCount) * 100) : 0;
+  document.getElementById('resAccuracy').textContent = avgAcc + '%';
+
+  // Grade
+  let grade;
+  if (score >= 1500) grade = 'S';
+  else if (score >= 1000) grade = 'A';
+  else if (score >= 600) grade = 'B';
+  else if (score >= 300) grade = 'C';
+  else grade = 'D';
+
+  const gradeColors = { S: '#f7d354', A: '#00ff88', B: '#66ccff', C: '#ffaa44', D: '#ff6b6b' };
+  const el = document.getElementById('gradeEmoji');
+  el.textContent = `Grade: ${grade}`;
+  el.style.color = gradeColors[grade];
+}
+
+function restartGame() {
+  document.getElementById('resultsScreen').classList.add('hidden');
+  document.getElementById('startScreen').classList.remove('hidden');
+}
+
+// ── Keyboard shortcuts ──
+document.addEventListener('keydown', (e) => {
+  if (!gameRunning) return;
+  if (e.key === 'z' && (e.ctrlKey || e.metaKey)) { undoBox(); e.preventDefault(); }
+  if (e.key === 'Enter') { submitImage(); e.preventDefault(); }
+  if (e.key === 'Escape') { clearBoxes(); }
+  if (e.key === 'a' && mode === 'ai') { aiAssist(); }
+});
+</script>
+</body>
+</html>
