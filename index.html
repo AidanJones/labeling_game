@@ -691,6 +691,11 @@ function updateHintLabels() {
 }
 
 // ── IoU / Accuracy ──
+function boxesOverlap(a, b) {
+  return a.x < b.x + b.w && a.x + a.w > b.x &&
+         a.y < b.y + b.h && a.y + a.h > b.y;
+}
+
 function computeIoU(boxA, boxB) {
   // boxA, boxB: {x,y,w,h}
   const ax1 = boxA.x, ay1 = boxA.y, ax2 = boxA.x + boxA.w, ay2 = boxA.y + boxA.h;
@@ -797,12 +802,15 @@ canvas.addEventListener('mouseup', (e) => {
   isDrawing = false;
   if (drawingBox && (Math.abs(drawingBox.w) > 5 || Math.abs(drawingBox.h) > 5)) {
     // Normalize
-    userBoxes.push({
+    const newBox = {
       x: drawingBox.w < 0 ? drawingBox.x + drawingBox.w : drawingBox.x,
       y: drawingBox.h < 0 ? drawingBox.y + drawingBox.h : drawingBox.y,
       w: Math.abs(drawingBox.w),
       h: Math.abs(drawingBox.h)
-    });
+    };
+    // Remove existing boxes that overlap with the new box
+    userBoxes = userBoxes.filter(b => !boxesOverlap(b, newBox));
+    userBoxes.push(newBox);
   }
   drawingBox = null;
   render();
@@ -837,12 +845,15 @@ canvas.addEventListener('touchend', (e) => {
   if (!isDrawing || !gameRunning) return;
   isDrawing = false;
   if (drawingBox && (Math.abs(drawingBox.w) > 5 || Math.abs(drawingBox.h) > 5)) {
-    userBoxes.push({
+    const newBox = {
       x: drawingBox.w < 0 ? drawingBox.x + drawingBox.w : drawingBox.x,
       y: drawingBox.h < 0 ? drawingBox.y + drawingBox.h : drawingBox.y,
       w: Math.abs(drawingBox.w),
       h: Math.abs(drawingBox.h)
-    });
+    };
+    // Remove existing boxes that overlap with the new box
+    userBoxes = userBoxes.filter(b => !boxesOverlap(b, newBox));
+    userBoxes.push(newBox);
   }
   drawingBox = null;
   render();
